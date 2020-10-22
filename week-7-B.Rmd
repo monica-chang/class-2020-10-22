@@ -26,13 +26,54 @@ The parameter $H$ is still the average number of hours of work reported by stude
 
 Review the Cardinal Virtues which serve as our guide for data science. Under Justice, is this model predictive or causal? What would the Preceptor Table look like? Write down the mathematical model we are using.
 
+```{r sc1}
 
+# stan_glm build a posterior distribution. Given this sample of classes, we will
+# build a distribution that represents the avg hours of work for all classes at 
+# Harvard.
+
+fit_obj <- stan_glm(hours ~ 1,
+                    data = qscores, 
+                    refresh = 0)
+
+fit_obj
+
+# Intercept Median - A median estimate for the average # of hours of work per 
+# class in 2018-19. May not be representative of 2020-21.
+# Intercept MAD_SD - Measures the spread of our posterior distribution 
+# (the scaled standard deviation - robust to outliers).
+
+# Auxiliary Median - A median estimate for the standard error of this posterior 
+# distribution.
+# Auxiliary MAD_SD - Measures the spread of the std error of our posterior 
+# distribution (the scaled standard deviation - robust to outliers).
+
+# This model is neither predictive nor causal. We have no treatment variable 
+# or predictor variables.
+# Our Preceptor Table would include include every single class.
+# The mathematical model we're using is 1 since the mean is a constant.
+
+```
 
 ## Scene 2
 
 **Prompt:** Create a plot of the posterior probability distribution for $H$. Interpret the plot. 
 
-
+```{r sc2}
+fit_obj %>%
+  as_tibble %>%
+  rename(mu = `(Intercept)`) %>%
+  drop_na() %>%
+  ggplot(aes(x = mu, y = after_stat(count/sum(count)))) +
+    geom_histogram(binwidth = 0.01, 
+                   color = "white") +
+    labs(title = "Posterior Probability Distribution",
+         subtitle = "Average hours worked for Harvard courses in 2018-19",
+         x = "Hours Worked",
+         y = "Probability") +
+    theme_classic() + 
+    geom_vline(xintercept = 6.2, color = "blue")
+```
 
 
 ## Scene 3
@@ -41,9 +82,27 @@ Review the Cardinal Virtues which serve as our guide for data science. Under Jus
 
 What do the rows and columns mean in the matrix returned by `posterior_predict()` mean?
 
+```{r sc3}
+pp <- posterior_predict(fit_obj) %>%
+  as_tibble() %>%
+  mutate(across(everything(), as.numeric))
+
+pp
+# The rows represent different draws/predictions (4000 draws)
+# The columns represent different avg hours worked for each class (748 classes)
+```
 
 Define D as the number of hours difference between the workload of two randomly selected courses. What is the 90% confidence interval within which the difference should fall?  
 
+```{r sc3b}
+course_diff <- tibble(course_1 = pp[,1],
+                      course_2 = pp[,2]) %>%
+  mutate(diff = course_1 - course_2)
+
+quantile(course_diff$diff)
+
+quantile(course_diff$diff, probs = c(0.05, 0.95))
+```
 
 What is your posterior probability distribution for D? 
 
